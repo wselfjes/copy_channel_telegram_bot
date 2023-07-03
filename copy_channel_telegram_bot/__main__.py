@@ -2,9 +2,22 @@
 Main package for copy channel telegram bot
 """
 
-import telegram
+import asyncio
+
+from telegram import Update
+from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
 
 from .config import read_config
+from .utils import logger_from_config
+
+
+def forwarder(config, logger):
+    async def inner(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        msg = update.channel_post
+        if msg:
+            logger.info(f"to forward: {msg}")
+
+    return inner
 
 
 def main():
@@ -13,18 +26,17 @@ def main():
     """
 
     config = read_config()
+    logger = logger_from_config(config)
 
-    bot = telegram.Bot(token=config.token)
+    app = ApplicationBuilder().token(config.token).build()
 
-    # Get the updates from the source channel
-    for update in bot.get_updates(chat_id=config.source_channel_id):
-        # Get the message from the update
-        message = update.message
+    app.add_handler(
+        MessageHandler(
+            filters=filters.ChatType.CHANNEL, callback=forwarder(config, logger)
+        )
+    )
 
-        # Check if the message is not None and is not a forwarded message
-        if message is not None and message.forward_from is None:
-            # Send the message to the destination channel
-            bot.send_message(chat_id=config.destination_channel_id, text=message.text)
+    app.run_polling()
 
 
 if __name__ == "__main__":
