@@ -13,6 +13,15 @@ from .utils import logger_from_config
 
 def forwarder(config, logger):
     async def inner(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not update.channel_post:
+            return
+        channel_id = update.channel_post.chat_id
+        logger.debug(
+            f"channel_id: {channel_id}, source_channel: {config.source_channel_id}"
+        )
+        if str(channel_id) != config.source_channel_id:
+            return
+
         msg = update.channel_post
         if msg:
             logger.info(f"to forward: {msg}")
